@@ -6,18 +6,17 @@ from typing import Any
 
 from rich.console import Console
 from rich.live import Live
-from rich.table import Table
 
 from config import ADMIN_URL, CONTEST_URL
-from monitor import Monitor
-from utils import colored_status, make_panel, make_table
+from process_manager import ProcessManager
+from utils import colored_status, make_table
 
 
 class Dashboard:
     """Render the launcher dashboard using Rich Live."""
 
-    def __init__(self, monitor: Monitor) -> None:
-        self.monitor = monitor
+    def __init__(self, manager: ProcessManager) -> None:
+        self.manager = manager
         self.console = Console()
         self.live: Live | None = None
         self._stop_event = threading.Event()
@@ -37,29 +36,17 @@ class Dashboard:
         self._stop_event.set()
 
     def _render(self) -> Any:
-        rows = []
-        for item in self.monitor.snapshot():
+        rows: list[list[Any]] = []
+        for item in self.manager.collect_statuses():
             rows.append(
                 [
                     item["name"],
-                    colored_status(item["status"]),
+                    colored_status(str(item["status"])),
                     str(item.get("pid") or "-"),
-                    item["cpu"],
-                    item["ram"],
-                    item["uptime"],
+                    f"{item['cpu']:.1f}%" if isinstance(item["cpu"], (int, float)) else str(item["cpu"]),
+                    f"{item['ram']} B" if isinstance(item["ram"], int) else str(item["ram"]),
+                    f"{item['uptime']:.0f}s" if isinstance(item["uptime"], (int, float)) else str(item["uptime"]),
                 ]
             )
         table = make_table(["SERVICE", "STATUS", "PID", "CPU", "RAM", "UPTIME"], rows)
-        footer = (
-            "Admin\n"
-            f"{ADMIN_URL}\n\n"
-            "Contest\n"
-            f"{CONTEST_URL}\n\n"
-            "Commands\n"
-            "Q Quit\n"
-            "R Restart\n"
-            "S Status\n"
-            "L Logs\n"
-            "T Tail"
-        )
         return table

@@ -14,12 +14,15 @@ class Service:
 
     config: ServiceConfig
     process: subprocess.Popen | None = None
+    pid: int | None = None
     log_file: Path = field(init=False)
     started_at: float | None = None
     restart_count: int = 0
     cpu_usage: float = 0.0
     ram_usage: int = 0
     status: str = "STOPPED"
+    exit_code: int | None = None
+    last_error: str | None = None
 
     def __post_init__(self) -> None:
         self.log_file = LOG_DIR / f"{self.config.executable}.log"
@@ -37,22 +40,10 @@ class Service:
         return self.config.name
 
     @property
-    def pid(self) -> int | None:
-        if self.process is None:
-            return None
-        return self.process.pid
-
-    @property
     def running(self) -> bool:
         if self.process is None:
             return False
         return self.process.poll() is None
-
-    @property
-    def exit_code(self) -> int | None:
-        if self.process is None:
-            return None
-        return self.process.poll()
 
     @property
     def uptime(self) -> float:
@@ -66,13 +57,26 @@ class Service:
 
     def mark_started(self, process: subprocess.Popen) -> None:
         self.process = process
+        self.pid = process.pid
         self.started_at = time.time()
         self.status = "RUNNING"
+        self.exit_code = None
+        self.last_error = None
 
-    def mark_stopped(self) -> None:
+    def mark_stopped(self, exit_code: int | None = None) -> None:
         self.process = None
         self.started_at = None
+        self.pid = None
         self.status = "STOPPED"
+        self.exit_code = exit_code
+
+    def mark_failed(self, reason: str, exit_code: int | None = None) -> None:
+        self.process = None
+        self.started_at = None
+        self.pid = None
+        self.status = "FAILED"
+        self.exit_code = exit_code
+        self.last_error = reason
 
     def restarted(self) -> None:
         self.restart_count += 1

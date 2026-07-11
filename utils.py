@@ -14,7 +14,7 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 
-from config import CMS_CONFIG, CMS_RANKING_CONFIG, CMS_VENV, LOG_DIR, PID_DIR, TAIL_LINES, ENV
+from config import CMS_BIN, CMS_CONFIG, CMS_RANKING_CONFIG, CMS_VENV, LOG_DIR, PID_DIR, TAIL_LINES, ENV
 
 
 CONSOLE = Console()
@@ -82,10 +82,8 @@ def detect_cms_venv() -> Path:
 
 
 def detect_executable(executable: str) -> Path | None:
-    """Locate an executable in the current environment."""
-    if shutil.which(executable):
-        return Path(shutil.which(executable))
-    path = CMS_VENV / ("Scripts" if os.name == "nt" else "bin") / executable
+    """Locate an executable in the configured CMS virtual environment."""
+    path = CMS_BIN / executable
     if path.exists():
         return path
     return None

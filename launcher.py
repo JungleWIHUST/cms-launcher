@@ -1,16 +1,11 @@
 from __future__ import annotations
 
-import os
-import signal
-import sys
 import threading
 import time
-from typing import Any
 
-from config import ADMIN_URL, CONTEST_URL, LOG_DIR, SERVICE_START_DELAY, TAIL_LINES
+from config import LOG_DIR, TAIL_LINES
 from dashboard import Dashboard
 from logger import LauncherLogger
-from monitor import Monitor
 from process_manager import ProcessManager
 from services import SERVICES
 from utils import check_executable_exists, check_postgresql_running, check_tcp_port, clear_logs, detect_cms_conf, detect_cms_ranking_conf, detect_cms_venv, ensure_directory, format_duration, tail_file
@@ -21,9 +16,8 @@ class Launcher:
 
     def __init__(self) -> None:
         self.logger = LauncherLogger()
-        self.manager = ProcessManager()
-        self.monitor = Monitor(self.manager)
-        self.dashboard = Dashboard(self.monitor)
+        self.manager = ProcessManager(self.logger)
+        self.dashboard = Dashboard(self.manager)
         self._shutdown_requested = False
 
     def run(self) -> None:
@@ -31,8 +25,8 @@ class Launcher:
         self._print_banner()
         self._validate_environment()
         self._prepare_runtime()
-        self.manager.start_all()
-        self.monitor.start()
+        self.manager.startup()
+        self.manager.start_monitoring()
         self._start_dashboard()
         self._handle_commands()
 
@@ -137,7 +131,6 @@ class Launcher:
         """Gracefully stop services and exit."""
         self.logger.info("Shutting down launcher")
         self.dashboard.stop()
-        self.monitor.stop()
         self.manager.graceful_shutdown()
         self.logger.info("Shutdown complete")
 
